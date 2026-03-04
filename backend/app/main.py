@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from app.db.database import Base, engine
 from app.models import user, incident
-from app.api.routes import auth
+from app.api.routes import auth, incidents
 
 Base.metadata.create_all(bind=engine)
 
@@ -12,6 +12,7 @@ app = FastAPI(
 )
 
 app.include_router(auth.router)
+app.include_router(incidents.router)
 
 @app.get("/health")
 def health_check():
