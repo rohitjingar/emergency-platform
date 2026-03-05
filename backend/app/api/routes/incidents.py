@@ -4,7 +4,7 @@ from typing import List
 from app.db.database import get_db
 from app.models.incident import Incident
 from app.schemas.incident import IncidentCreate, IncidentResponse
-from app.core.security import decode_access_token
+from app.core.security import decode_access_token, require_role
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
 router = APIRouter(prefix="/incidents", tags=["Incidents"])
@@ -47,3 +47,18 @@ def get_incidents(
     current_user: dict = Depends(get_current_user)
 ):
     return db.query(Incident).offset(skip).limit(limit).all()
+
+
+# Admin only — role protection in action
+@router.delete("/{incident_id}")
+def delete_incident(
+    incident_id: int,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(require_role(["admin"]))
+):
+    incident = db.query(Incident).filter(Incident.id == incident_id).first()
+    if not incident:
+        raise HTTPException(status_code=404, detail="Incident not found")
+    db.delete(incident)
+    db.commit()
+    return {"message": f"Incident {incident_id} deleted"}

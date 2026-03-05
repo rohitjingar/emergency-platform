@@ -2,6 +2,8 @@ from datetime import datetime, timedelta
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 from app.core.config import settings
+from fastapi import HTTPException, Depends
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -22,3 +24,15 @@ def decode_access_token(token: str) -> dict | None:
         return jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
     except JWTError:
         return None
+    
+    
+def require_role(allowed_roles: list):
+    def role_checker(credentials: HTTPAuthorizationCredentials = Depends(HTTPBearer())):
+        token = credentials.credentials
+        payload = decode_access_token(token)
+        if not payload:
+            raise HTTPException(status_code=401, detail="Invalid or expired token")
+        if payload.get("role") not in allowed_roles:
+            raise HTTPException(status_code=403, detail=f"Access denied. Required roles: {allowed_roles}")
+        return payload
+    return role_checker
