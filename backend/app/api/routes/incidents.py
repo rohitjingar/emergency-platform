@@ -41,7 +41,9 @@ def create_incident(
 
 @router.get("/", response_model=List[IncidentResponse])
 def get_incidents(
+    skip: int = 0,
+    limit: int = 10,
     db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user)
 ):
-    return db.query(Incident).all()
+    return db.query(Incident).offset(skip).limit(limit).all()
