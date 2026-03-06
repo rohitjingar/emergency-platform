@@ -5,6 +5,7 @@ from knowledge_base.emergency_docs import EMERGENCY_DOCS
 
 COLLECTION_NAME = "emergency_knowledge"
 
+
 def get_chroma_client():
     return chromadb.PersistentClient(
         path="./chroma_db",
