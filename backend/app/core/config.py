@@ -16,11 +16,11 @@ class Settings(BaseSettings):
     AI_TEMPERATURE: float = 0.1
 
     # RAG
-    RELEVANCE_THRESHOLD: float = 0.3
+    RELEVANCE_THRESHOLD: float = 0.15
     RAG_N_RESULTS: int = 2
     CHROMA_PATH: str = "./chroma_db"
     CHROMA_COLLECTION: str = "emergency_knowledge"
-    EMBEDDING_MODEL: str = "all-MiniLM-L6-v2"
+    EMBEDDING_MODEL: str = "all-mpnet-base-v2"
 
     # Auth
     VALID_ROLES: set = {"affected_user", "volunteer", "hospital", "admin"}

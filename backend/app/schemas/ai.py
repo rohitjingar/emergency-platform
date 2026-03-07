@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import List, Optional
+from typing import List
 
 class AIRequest(BaseModel):
     question: str
@@ -13,4 +13,5 @@ class AIResponse(BaseModel):
     question: str
     answer: str
     sources: List[SourceDoc]
-    grounded: bool  # True = answer from docs, False = no docs found
+    grounded: bool
+    injection_detected: bool = False
