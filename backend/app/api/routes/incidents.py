@@ -2,52 +2,41 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List
 from app.db.database import get_db
-from app.models.incident import Incident
 from app.schemas.incident import IncidentCreate, IncidentResponse
-from app.core.security import require_role
-from app.core.dependencies import get_current_user
+from app.services.incident_service import create_incident, get_incidents, delete_incident
+from app.core.dependencies import get_current_user, require_role
+from app.core.exceptions import AppException
 
 router = APIRouter(prefix="/incidents", tags=["Incidents"])
 
 @router.post("/", response_model=IncidentResponse)
-def create_incident(
+def create(
     data: IncidentCreate,
     db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user)
 ):
-    incident = Incident(
-        type=data.type,
-        description=data.description,
-        latitude=data.latitude,
-        longitude=data.longitude,
-        priority=data.priority,
-        user_id=int(current_user["sub"])
-    )
-    db.add(incident)
-    db.commit()
-    db.refresh(incident)
-    return incident
+    try:
+        return create_incident(db, data, user_id=int(current_user["sub"]))
+    except AppException as e:
+        raise HTTPException(status_code=e.status_code, detail=e.message)
 
 @router.get("/", response_model=List[IncidentResponse])
-def get_incidents(
+def list_incidents(
     skip: int = 0,
     limit: int = 10,
     db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user)
 ):
-    return db.query(Incident).offset(skip).limit(limit).all()
+    return get_incidents(db, skip=skip, limit=limit)
 
-
-# Admin only — role protection in action
 @router.delete("/{incident_id}")
-def delete_incident(
+def remove_incident(
     incident_id: int,
     db: Session = Depends(get_db),
     current_user: dict = Depends(require_role(["admin"]))
 ):
-    incident = db.query(Incident).filter(Incident.id == incident_id).first()
-    if not incident:
-        raise HTTPException(status_code=404, detail="Incident not found")
-    db.delete(incident)
-    db.commit()
-    return {"message": f"Incident {incident_id} deleted"}
+    try:
+        delete_incident(db, incident_id)
+        return {"message": f"Incident {incident_id} deleted"}
+    except AppException as e:
+        raise HTTPException(status_code=e.status_code, detail=e.message)
