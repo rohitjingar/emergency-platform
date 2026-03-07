@@ -4,21 +4,10 @@ from typing import List
 from app.db.database import get_db
 from app.models.incident import Incident
 from app.schemas.incident import IncidentCreate, IncidentResponse
-from app.core.security import decode_access_token, require_role
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from app.core.security import require_role
+from app.core.dependencies import get_current_user
 
 router = APIRouter(prefix="/incidents", tags=["Incidents"])
-security = HTTPBearer()
-
-def get_current_user(
-    credentials: HTTPAuthorizationCredentials = Depends(security),
-    db: Session = Depends(get_db)
-):
-    token = credentials.credentials
-    payload = decode_access_token(token)
-    if not payload:
-        raise HTTPException(status_code=401, detail="Invalid or expired token")
-    return payload  # contains {"sub": user_id, "role": role}
 
 @router.post("/", response_model=IncidentResponse)
 def create_incident(
