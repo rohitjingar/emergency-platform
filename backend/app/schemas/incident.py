@@ -1,6 +1,6 @@
 from pydantic import BaseModel
-from datetime import datetime
 from typing import Optional
+from datetime import datetime
 
 class IncidentCreate(BaseModel):
     type: str
@@ -22,3 +22,8 @@ class IncidentResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+class IncidentCreateResponse(BaseModel):
+    incident: IncidentResponse
+    queued: bool           # was event emitted to Redis?
+    message: str

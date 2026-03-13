@@ -24,6 +24,13 @@ class Settings(BaseSettings):
 
     # Auth
     VALID_ROLES: set = {"affected_user", "volunteer", "hospital", "admin"}
+    
+    # ── new Redis fields ──
+    REDIS_HOST: str = "localhost"
+    REDIS_PORT: int = 6379
+    REDIS_DB: int = 0
+    REDIS_INCIDENT_QUEUE: str = "incidents:new"
+    IDEMPOTENCY_WINDOW_SECONDS: int = 300  # 5 minutes
 
     class Config:
         env_file = ".env"

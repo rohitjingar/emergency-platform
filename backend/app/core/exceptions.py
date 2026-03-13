@@ -27,3 +27,11 @@ class IncidentNotFoundError(AppException):
 class AIServiceError(AppException):
     def __init__(self, message: str):
         super().__init__(f"AI service error: {message}", status_code=503)
+        
+class DuplicateIncidentError(AppException):
+    def __init__(self):
+        super().__init__(
+            "Duplicate incident: same location reported within 5 minutes. "
+            "Your original report is already being processed.",
+            status_code=409  # 409 Conflict — semantically correct for duplicates
+        )

@@ -1,22 +1,30 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List
+
 from app.db.database import get_db
-from app.schemas.incident import IncidentCreate, IncidentResponse
+from app.schemas.incident import IncidentCreate, IncidentResponse, IncidentCreateResponse
 from app.services.incident_service import create_incident, get_incidents, delete_incident
 from app.core.dependencies import get_current_user, require_role
 from app.core.exceptions import AppException
 
 router = APIRouter(prefix="/incidents", tags=["Incidents"])
 
-@router.post("/", response_model=IncidentResponse)
+@router.post("/", response_model=IncidentCreateResponse)
 def create(
     data: IncidentCreate,
     db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user)
 ):
     try:
-        return create_incident(db, data, user_id=int(current_user["sub"]))
+        result = create_incident(db, data, user_id=int(current_user["sub"]))
+        return IncidentCreateResponse(
+            incident=result["incident"],
+            queued=result["queued"],
+            message="Incident reported successfully. Emergency services notified."
+            if result["queued"]
+            else "Incident reported successfully. (Notification queue temporarily unavailable)"
+        )
     except AppException as e:
         raise HTTPException(status_code=e.status_code, detail=e.message)
 
