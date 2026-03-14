@@ -21,6 +21,7 @@ def create(
         return IncidentCreateResponse(
             incident=result["incident"],
             queued=result["queued"],
+            triage=result["triage"],   
             message="Incident reported successfully. Emergency services notified."
             if result["queued"]
             else "Incident reported successfully. (Notification queue temporarily unavailable)"

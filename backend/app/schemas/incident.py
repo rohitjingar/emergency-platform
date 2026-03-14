@@ -22,8 +22,19 @@ class IncidentResponse(BaseModel):
 
     class Config:
         from_attributes = True
+        
+class TriageResult(BaseModel):
+    severity: Optional[str]
+    confidence: Optional[float]
+    reasoning: Optional[str]
+    rag_used: Optional[bool]
+    processing_ms: int
 
 class IncidentCreateResponse(BaseModel):
     incident: IncidentResponse
-    queued: bool           # was event emitted to Redis?
+    queued: bool
     message: str
+    triage: Optional[TriageResult] = None
+
+    class Config:
+        from_attributes = True

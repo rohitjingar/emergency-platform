@@ -9,6 +9,7 @@ from app.models.incident import Incident
 from app.core.exceptions import IncidentNotFoundError, DuplicateIncidentError
 from app.core.config import settings
 from app.db.redis_client import get_redis_client, is_redis_available
+from app.agents.triage_agent import run_triage
 
 # ── Idempotency ──────────────────────────────────────────────────
 
@@ -84,14 +85,12 @@ def _emit_incident_event(incident: Incident) -> bool:
 # ── Service Functions ────────────────────────────────────────────
 
 def create_incident(db: Session, data: IncidentCreate, user_id: int) -> dict:
-    # Step 1 — build key once, reuse for both check and mark
+    # Step 1 — idempotency check
     idempotency_key = _build_idempotency_key(user_id, data.latitude, data.longitude)
-
-    # Step 2 — atomic check + mark in one Redis round trip
     if _check_and_mark(idempotency_key):
         raise DuplicateIncidentError()
 
-    # Step 3 — save to PostgreSQL
+    # Step 2 — save to PostgreSQL
     incident = IncidentRepository(db).create(
         type=data.type,
         description=data.description,
@@ -101,10 +100,33 @@ def create_incident(db: Session, data: IncidentCreate, user_id: int) -> dict:
         user_id=user_id
     )
 
+    # Step 3 — run triage agent
+    try:
+        triage = run_triage(
+            incident_text=data.description,
+            incident_type=data.type
+        )
+        # update incident row with triage results
+        incident.severity = triage["severity"]
+        incident.confidence = triage["confidence"]
+        incident.reasoning = triage["reasoning"]
+        incident.rag_used = "yes" if triage["rag_used"] else "no"
+        db.commit()
+        db.refresh(incident)
+    except Exception as e:
+        # triage failure must never block incident creation
+        print(f"WARNING: Triage failed for incident {incident.id}: {e}")
+        triage = {"severity": None, "confidence": None, 
+                  "reasoning": None, "rag_used": None, "processing_ms": 0}
+
     # Step 4 — emit event to Redis queue
     queued = _emit_incident_event(incident)
 
-    return {"incident": incident, "queued": queued}
+    return {
+        "incident": incident,
+        "queued": queued,
+        "triage": triage   # ← return triage result to caller
+    }
 
 def get_incidents(db: Session, skip: int = 0, limit: int = 10) -> list[Incident]:
     return IncidentRepository(db).get_all(skip=skip, limit=limit)
