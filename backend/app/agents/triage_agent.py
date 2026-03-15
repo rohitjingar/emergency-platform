@@ -1,4 +1,3 @@
-# app/agents/triage_agent.py
 import json
 import time
 from langgraph.graph import StateGraph, END
@@ -70,7 +69,7 @@ def retrieve_context(state: TriageState) -> TriageState:
     confidence = state.get("type_confidence", 0.5)
     incident_type = state.get("classified_type", "other")
     
-    print(f"DEBUG: classified_type={incident_type}, confidence={confidence}")
+    
 
     # Decision: skip retrieval if we're very confident about a clear type
     if confidence >= 0.85 and incident_type != "other":

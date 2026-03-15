@@ -1,3 +1,4 @@
+from app.repositories.volunteer_repository import VolunteerRepository
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List
@@ -7,6 +8,8 @@ from app.schemas.incident import IncidentCreate, IncidentResponse, IncidentCreat
 from app.services.incident_service import create_incident, get_incidents, delete_incident
 from app.core.dependencies import get_current_user, require_role
 from app.core.exceptions import AppException
+from app.models.incident import Incident
+from app.services.matching_service import release_lock
 
 router = APIRouter(prefix="/incidents", tags=["Incidents"])
 
@@ -21,10 +24,11 @@ def create(
         return IncidentCreateResponse(
             incident=result["incident"],
             queued=result["queued"],
-            triage=result["triage"],   
-            message="Incident reported successfully. Emergency services notified."
-            if result["queued"]
-            else "Incident reported successfully. (Notification queue temporarily unavailable)"
+            message=(
+                "Incident reported. Our team is finding the nearest volunteer."
+                if result["queued"]
+                else "Incident reported. Processing in progress."
+            )
         )
     except AppException as e:
         raise HTTPException(status_code=e.status_code, detail=e.message)
@@ -38,6 +42,26 @@ def list_incidents(
 ):
     return get_incidents(db, skip=skip, limit=limit)
 
+@router.get("/{incident_id}/status")
+def get_incident_status(
+    incident_id: int,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    incident = db.query(Incident).filter(
+        Incident.id == incident_id
+    ).first()
+    if not incident:
+        raise HTTPException(status_code=404, detail="Incident not found")
+    return {
+        "incident_id": incident.id,
+        "status": incident.status,
+        "severity": incident.severity,
+        "confidence": incident.confidence,
+        "assigned_volunteer_id": incident.assigned_volunteer_id,
+        "assignment_attempts": incident.assignment_attempts
+    }
+
 @router.delete("/{incident_id}")
 def remove_incident(
     incident_id: int,
@@ -49,3 +73,4 @@ def remove_incident(
         return {"message": f"Incident {incident_id} deleted"}
     except AppException as e:
         raise HTTPException(status_code=e.status_code, detail=e.message)
+    

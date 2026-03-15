@@ -1,4 +1,3 @@
-# app/agents/state.py
 from typing import TypedDict, Optional
 
 class TriageState(TypedDict):

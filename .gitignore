@@ -213,3 +213,4 @@ chroma_db/
 
 # Virtual environment
 backend/venv311/
+backend/venv_linux/

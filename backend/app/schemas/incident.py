@@ -29,12 +29,19 @@ class TriageResult(BaseModel):
     reasoning: Optional[str]
     rag_used: Optional[bool]
     processing_ms: int
+        
+        
+class MatchedVolunteer(BaseModel):
+    volunteer_id: int
+    user_id: int
+    skills: list[str]
+    distance_meters: float
+    distance_km: float
 
 class IncidentCreateResponse(BaseModel):
     incident: IncidentResponse
     queued: bool
     message: str
-    triage: Optional[TriageResult] = None
 
     class Config:
         from_attributes = True
