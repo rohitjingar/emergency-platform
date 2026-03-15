@@ -8,7 +8,7 @@ def log(msg): print(f"\n{'='*50}\n{msg}\n{'='*50}")
 def ok(msg): print(f"  ✅ {msg}")
 def fail(msg): print(f"  ❌ {msg}")
 
-BASE_URL = "http://localhost:8000"
+BASE_URL = os.environ.get("BASE_URL", "http://localhost:8000")
 
 # ── Auth helpers ─────────────────────────────────────
 
