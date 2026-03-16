@@ -59,7 +59,8 @@ def get_incident_status(
         "severity": incident.severity,
         "confidence": incident.confidence,
         "assigned_volunteer_id": incident.assigned_volunteer_id,
-        "assignment_attempts": incident.assignment_attempts
+        "assignment_attempts": incident.assignment_attempts,
+        "fallback_used": incident.fallback_used 
     }
 
 @router.delete("/{incident_id}")

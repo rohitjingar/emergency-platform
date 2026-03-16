@@ -1,4 +1,3 @@
-# app/workers/incident_worker.py
 from app.db.database import SessionLocal
 from app.models.incident import Incident
 from app.models.volunteer import Volunteer          
@@ -39,7 +38,8 @@ def process_incident(incident_id: int) -> None:
             incident.severity = triage["severity"]
             incident.confidence = triage["confidence"]
             incident.reasoning = triage["reasoning"]
-            incident.rag_used = "yes" if triage["rag_used"] else "no"
+            incident.rag_used = "yes" if triage.get("rag_used") else "no"
+            incident.fallback_used = triage.get("fallback_used", False)
             db.commit()
             print(f"Triage done: incident {incident_id} → {triage['severity']}")
         except Exception as e:
@@ -47,6 +47,7 @@ def process_incident(incident_id: int) -> None:
             incident.severity = "High"
             incident.confidence = 0.0
             incident.reasoning = "Triage failed — defaulting to High"
+            incident.fallback_used = True   # ← always True when exception
             db.commit()
 
         # ── Enqueue Job 2 ─────────────────────────────────────────

@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey
+from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, Boolean
 from sqlalchemy.sql import func
 from app.db.database import Base
 
@@ -21,4 +21,5 @@ class Incident(Base):
     assigned_volunteer_id = Column(Integer, ForeignKey("volunteers.id"), nullable=True)
     assigned_at = Column(DateTime(timezone=True), nullable=True)        
     assignment_attempts = Column(Integer, default=0)
-    last_attempted_at = Column(DateTime(timezone=True), nullable=True)                    
+    last_attempted_at = Column(DateTime(timezone=True), nullable=True)
+    fallback_used = Column(Boolean, default=False)                    

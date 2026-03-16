@@ -321,3 +321,170 @@ def test_admin_review():
     log("✅ ADMIN REVIEW QUEUE TEST COMPLETE")
     
     
+def test_circuit_breaker():
+    log("CIRCUIT BREAKER TEST")
+
+    admin_token = login("admin1@test.com", "test123")
+    affected_token = login("affected1@test.com", "test123")
+
+    # ── Step 1: reset circuit to CLOSED ─────────────────────────
+    log("Step 1: Reset circuit breaker to CLOSED")
+    r = requests.post(f"{BASE_URL}/system/circuit-breaker/reset")
+    assert r.status_code == 200, f"Reset failed: {r.text}"
+    status = r.json()
+    assert status["state"] == "closed", f"Expected closed, got {status['state']}"
+    print(f"  State:    {status['state']}")
+    print(f"  Failures: {status['failures']}/{status['threshold']}")
+    ok("Circuit starts CLOSED")
+
+    # ── Step 2: submit incident — LLM should run ─────────────────
+    log("Step 2: Submit incident with circuit CLOSED (LLM should run)")
+    r = requests.post(f"{BASE_URL}/incidents/",
+        json={
+            "type": "flood",
+            "description": "person trapped, water rising fast",
+            "latitude": 26.9350,
+            "longitude": 75.8050,
+            "priority": "high"
+        },
+        headers=headers(affected_token)
+    )
+    assert r.status_code == 200, f"Failed: {r.text}"
+    incident_id_1 = r.json()["incident"]["id"]
+    ok(f"Incident created: id={incident_id_1}")
+
+    log("Wait 10s for triage")
+    for i in range(10):
+        print(f"  Waiting... {i+1}s", end="\r")
+        time.sleep(1)
+
+    r = requests.get(f"{BASE_URL}/incidents/{incident_id_1}/status",
+        headers=headers(affected_token)
+    )
+    status_1 = r.json()
+    print(f"  Severity:      {status_1['severity']}")
+    print(f"  Confidence:    {status_1['confidence']}")
+    print(f"  Fallback used: {status_1.get('fallback_used')}")
+    assert status_1.get("fallback_used") == False, \
+        "Expected LLM, got fallback"
+    ok("LLM ran correctly — fallback_used = False ✅")
+
+    # ── Step 3: simulate 5 failures → open circuit ───────────────
+    log("Step 3: Simulate 5 failures to OPEN circuit breaker")
+    for i in range(5):
+        r = requests.post(f"{BASE_URL}/system/circuit-breaker/simulate-failure")
+        assert r.status_code == 200, f"Simulate failure failed: {r.text}"
+        status = r.json()
+        print(f"  Failure {i+1}/5 → state={status['state']}, failures={status['failures']}")
+
+    # verify circuit is now OPEN
+    r = requests.get(f"{BASE_URL}/system/circuit-breaker")
+    assert r.status_code == 200, f"Failed: {r.text}"
+    status = r.json()
+    assert status["state"] == "open", f"Expected open, got {status['state']}"
+    ok("Circuit is OPEN after 5 failures ✅")
+
+    # ── Step 4: submit incident — fallback should run ────────────
+    log("Step 4: Submit incident with circuit OPEN (fallback should run)")
+    r = requests.post(f"{BASE_URL}/incidents/",
+        json={
+            "type": "fire",
+            "description": "building on fire, people trapped inside",
+            "latitude": 26.9400,
+            "longitude": 75.8100,
+            "priority": "high"
+        },
+        headers=headers(affected_token)
+    )
+    assert r.status_code == 200, f"Failed: {r.text}"
+    incident_id_2 = r.json()["incident"]["id"]
+    ok(f"Incident created: id={incident_id_2}")
+
+    log("Wait 10s for triage (should be fast — no LLM call)")
+    for i in range(10):
+        print(f"  Waiting... {i+1}s", end="\r")
+        time.sleep(1)
+
+    r = requests.get(f"{BASE_URL}/incidents/{incident_id_2}/status",
+        headers=headers(affected_token)
+    )
+    status_2 = r.json()
+    print(f"  Severity:      {status_2['severity']}")
+    print(f"  Confidence:    {status_2['confidence']}")
+    print(f"  Fallback used: {status_2.get('fallback_used')}")
+    assert status_2.get("fallback_used") == True, \
+        "Expected fallback, got LLM"
+    ok("Fallback ran correctly — fallback_used = True ✅")
+
+    # confidence must be capped at 0.75 (fallback max)
+    assert status_2["confidence"] <= 0.75, \
+        f"Fallback confidence should be <= 0.75, got {status_2['confidence']}"
+    ok(f"Confidence capped correctly: {status_2['confidence']} ✅")
+
+    # ── Step 5: check health endpoint ────────────────────────────
+    log("Step 5: Check system health with circuit OPEN")
+    r = requests.get(f"{BASE_URL}/system/health")
+    assert r.status_code == 200, f"Health check failed: {r.text}"
+    health = r.json()
+    print(f"  Overall:         {health['overall']}")
+    print(f"  API:             {health['api']}")
+    print(f"  PostgreSQL:      {health['postgres']}")
+    print(f"  Redis:           {health['redis']}")
+    print(f"  Circuit breaker: {health['circuit_breaker']}")
+    print(f"  Issues:          {health['issues']}")
+    assert health["circuit_breaker"] == "open", \
+        "Health check should show circuit_breaker=open"
+    assert health["overall"] == "degraded", \
+        "Overall should be degraded when circuit is open"
+    ok("Health endpoint correctly shows degraded state ✅")
+
+    # ── Step 6: check queue stats ─────────────────────────────────
+    log("Step 6: Check queue stats")
+    r = requests.get(f"{BASE_URL}/system/queues")
+    assert r.status_code == 200, f"Queue stats failed: {r.text}"
+    queues = r.json()
+    print(f"  incidents-queue waiting:  {queues['incidents_queue']['waiting']}")
+    print(f"  assignment-queue waiting: {queues['assignment_queue']['waiting']}")
+    ok("Queue stats returned ✅")
+
+    # ── Step 7: reset circuit → verify healthy again ─────────────
+    log("Step 7: Reset circuit to CLOSED")
+    r = requests.post(f"{BASE_URL}/system/circuit-breaker/reset")
+    assert r.status_code == 200, f"Reset failed: {r.text}"
+    status = r.json()
+    assert status["state"] == "closed", f"Expected closed, got {status['state']}"
+    ok("Circuit reset to CLOSED ✅")
+
+    # verify health shows ok again
+    r = requests.get(f"{BASE_URL}/system/health")
+    health = r.json()
+    print(f"  Overall after reset: {health['overall']}")
+    assert health["circuit_breaker"] == "ok", \
+        "Circuit breaker should show ok after reset"
+    ok("System health restored to ok ✅")
+
+    log("✅ CIRCUIT BREAKER TEST COMPLETE")
+    
+    
+if __name__ == "__main__":
+    import sys
+    
+    tests = {
+        "full": test_full_flow,
+        "decline": test_decline_flow,
+        "admin": test_admin_review,
+        "circuit": test_circuit_breaker,
+    }
+    
+    if len(sys.argv) > 1:
+        test_name = sys.argv[1]
+        if test_name in tests:
+            tests[test_name]()
+        else:
+            print(f"Unknown test: {test_name}")
+            print(f"Available: {list(tests.keys())}")
+    else:
+        # run all
+        for name, fn in tests.items():
+            print(f"\n{'='*50}\nRunning: {name}\n{'='*50}")
+            fn()

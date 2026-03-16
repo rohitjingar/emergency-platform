@@ -234,3 +234,12 @@ def get_review_stats(
         "override_rate_percent": override_rate,
         "confidence_threshold": REVIEW_CONFIDENCE_THRESHOLD
     }
+    
+
+@router.get("/circuit-breaker")
+def get_circuit_breaker_status(
+    current_user: dict = Depends(require_role(["admin"]))
+):
+    """Circuit breaker status — is LLM API healthy?"""
+    from app.core.circuit_breaker import get_circuit_status
+    return get_circuit_status()

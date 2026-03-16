@@ -181,37 +181,86 @@ def build_triage_graph() -> StateGraph:
 
     return graph.compile()
 
-# ── Public function called by incident_service ──────────────────
 def run_triage(incident_text: str, incident_type: str) -> dict:
     """
-    Entry point for the triage agent.
-    Returns triage result as a plain dict.
+    Entry point for triage.
+    Flow:
+      1. Check circuit breaker — if OPEN use fallback
+      2. Run LangGraph agent
+      3. Validate output with guardrails
+      4. If invalid — use safe default
+      5. Record success/failure on circuit breaker
     """
+    from app.core.circuit_breaker import (
+        is_call_allowed, record_success, record_failure
+    )
+    from app.core.fallback_classifier import classify_severity
+    from app.core.guardrails import validate_triage_output, safe_default
+
     start = time.time()
 
-    graph = build_triage_graph()
+    # Step 1 — circuit breaker check
+    if not is_call_allowed():
+        print(f"Circuit breaker OPEN — using fallback for: {incident_text[:50]}")
+        result = classify_severity(incident_text, incident_type)
+        result["processing_ms"] = int((time.time() - start) * 1000)
+        result["circuit_open"] = True
+        return result
 
-    initial_state: TriageState = {
-        "incident_text": incident_text,
-        "incident_type": incident_type,
-        "classified_type": None,
-        "type_confidence": None,
-        "rag_context": None,
-        "rag_used": None,
-        "severity": None,
-        "severity_confidence": None,
-        "reasoning": None,
-    }
+    # Step 2 — run LangGraph agent
+    try:
+        graph = build_triage_graph()
 
-    result = graph.invoke(initial_state)
+        initial_state: TriageState = {
+            "incident_text": incident_text,
+            "incident_type": incident_type,
+            "classified_type": None,
+            "type_confidence": None,
+            "rag_context": None,
+            "rag_used": None,
+            "severity": None,
+            "severity_confidence": None,
+            "reasoning": None,
+        }
 
-    processing_ms = int((time.time() - start) * 1000)
+        graph_result = graph.invoke(initial_state)
 
-    return {
-        "severity": result["severity"],
-        "confidence": result["severity_confidence"],
-        "reasoning": result["reasoning"],
-        "rag_used": result["rag_used"],
-        "classified_type": result["classified_type"],
-        "processing_ms": processing_ms,
-    }
+        raw_result = {
+            "severity": graph_result["severity"],
+            "confidence": graph_result["severity_confidence"],
+            "reasoning": graph_result["reasoning"],
+            "rag_used": graph_result["rag_used"],
+            "classified_type": graph_result["classified_type"],
+        }
+
+        # Step 3 — guardrails validation
+        is_valid, reason = validate_triage_output(raw_result)
+
+        if not is_valid:
+            print(f"Guardrail triggered: {reason}")
+            record_failure()
+            result = safe_default(reason)
+            result["processing_ms"] = int((time.time() - start) * 1000)
+            return result
+
+        # Step 4 — success
+        record_success()
+        raw_result["processing_ms"] = int((time.time() - start) * 1000)
+        raw_result["fallback_used"] = False
+        raw_result["circuit_open"] = False
+        return raw_result
+
+    except Exception as e:
+        print(f"Triage agent error: {e}")
+        record_failure()
+
+        # check if circuit just opened
+        from app.core.circuit_breaker import get_state, CircuitState
+        state = get_state()
+        if state == CircuitState.OPEN:
+            print("Circuit breaker now OPEN — switching to fallback")
+
+        result = classify_severity(incident_text, incident_type)
+        result["processing_ms"] = int((time.time() - start) * 1000)
+        result["circuit_open"] = True
+        return result
