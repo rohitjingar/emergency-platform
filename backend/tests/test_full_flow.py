@@ -237,9 +237,87 @@ def test_decline_flow():
 
     log("✅ DECLINE FLOW TEST COMPLETE")
 
+# ── Admin Review Queue ────────────────────────────────
 
-if __name__ == "__main__":
-    print("\n🚨 Emergency Platform — Full Flow Test\n")
-    test_full_flow()
-    print("\n")
-    test_decline_flow()
+def test_admin_review():
+    log("ADMIN REVIEW QUEUE TEST")
+
+    try:
+        register("admin1@test.com", "test123", "admin")
+    except Exception:
+        pass
+    admin_token = login("admin1@test.com", "test123")
+    affected_token = login("affected1@test.com", "test123")
+
+    log("Check review queue")
+    r = requests.get(f"{BASE_URL}/admin/review-queue",
+        headers=headers(admin_token)
+    )
+    assert r.status_code == 200, f"Review queue failed: {r.text}"
+    queue = r.json()
+    print(f"  Incidents in review queue: {queue['count']}")
+    print(f"  Threshold: {queue['threshold']}")
+    ok("Review queue accessible")
+
+    log("Check stats")
+    r = requests.get(f"{BASE_URL}/admin/review-queue/stats",
+        headers=headers(admin_token)
+    )
+    assert r.status_code == 200, f"Stats failed: {r.text}"
+    stats = r.json()
+    print(f"  Total incidents:     {stats['total_incidents']}")
+    print(f"  Avg confidence:      {stats['avg_confidence']}")
+    print(f"  Override rate:       {stats['override_rate_percent']}%")
+    print(f"  Review rate:         {stats['review_rate_percent']}%")
+    ok("Stats returned")
+
+    if queue["count"] > 0:
+        incident = queue["review_queue"][0]
+        incident_id = incident["incident_id"]
+        print(f"  Incident {incident_id}: status={incident['status']}")
+        print(f"  Severity:      {incident['severity']}")
+        print(f"  Confidence:    {incident['confidence']}")
+        print(f"  Action impact: {incident['action_impact']}")
+
+        log(f"Override incident {incident_id} severity")
+        r = requests.patch(
+            f"{BASE_URL}/admin/review-queue/{incident_id}/override",
+            json={
+                "new_severity": "Critical",
+                "reason": "Manual assessment confirms critical"
+            },
+            headers=headers(admin_token)
+        )
+        assert r.status_code == 200, f"Override failed: {r.text}"
+        result = r.json()
+        print(f"  {result['original_severity']} → {result['new_severity']}")
+        print(f"  Volunteer notified: {result['volunteer_notified']}")
+        ok("Severity overridden")
+
+        log(f"Approve incident {incident_id}")
+        r = requests.patch(
+            f"{BASE_URL}/admin/review-queue/{incident_id}/approve",
+            headers=headers(admin_token)
+        )
+        assert r.status_code == 200, f"Approve failed: {r.text}"
+        result = r.json()
+        print(f"  Status: {result['status']}")
+        ok("Decision approved")
+
+        log("Check stats after override")
+        r = requests.get(f"{BASE_URL}/admin/review-queue/stats",
+            headers=headers(admin_token)
+        )
+        stats = r.json()
+        print(f"  Override rate after: {stats['override_rate_percent']}%")
+        print(f"  Overridden count:    {stats['overridden']}")
+        print(f"  Approved count:      {stats['approved']}")
+        ok("Stats updated correctly")
+
+    else:
+        fail("No low-confidence incidents in queue — insert one manually first")
+        return
+
+    log("✅ ADMIN REVIEW QUEUE TEST COMPLETE")
+    
+    
