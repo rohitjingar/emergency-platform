@@ -4,7 +4,15 @@ from chromadb.config import Settings as ChromaSettings
 from knowledge_base.emergency_docs import EMERGENCY_DOCS
 from app.core.config import settings
 
-def get_chroma_client() -> chromadb.PersistentClient:
+def get_chroma_client():
+    from app.core.config import settings
+    if settings.CHROMA_HOST:
+        # Docker mode — connect to ChromaDB container via HTTP
+        return chromadb.HttpClient(
+            host=settings.CHROMA_HOST,
+            port=8000
+        )
+    # Local mode — use persistent local path
     return chromadb.PersistentClient(
         path=settings.CHROMA_PATH,
         settings=ChromaSettings(anonymized_telemetry=False)

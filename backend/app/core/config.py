@@ -18,6 +18,7 @@ class Settings(BaseSettings):
     # RAG
     RELEVANCE_THRESHOLD: float = 0.15
     RAG_N_RESULTS: int = 2
+    CHROMA_HOST: str = ""
     CHROMA_PATH: str = "./chroma_db"
     CHROMA_COLLECTION: str = "emergency_knowledge"
     EMBEDDING_MODEL: str = "all-mpnet-base-v2"

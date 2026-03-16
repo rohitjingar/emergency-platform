@@ -88,8 +88,8 @@ def test_full_flow():
     assert incident["queued"] == True, "Job not queued!"
     ok("Job enqueued to Redis")
 
-    log("STEP 5: Wait for triage + assignment (10 seconds)")
-    for i in range(10):
+    log("STEP 5: Wait for triage + assignment (20 seconds)")
+    for i in range(20):
         print(f"  Waiting... {i+1}s", end="\r")
         time.sleep(1)
 

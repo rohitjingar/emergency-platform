@@ -1,0 +1,12 @@
+venv311/
+venv_linux/
+emergency_venv/
+__pycache__/
+*.pyc
+*.pyo
+.env
+chroma_db/
+.git/
+.gitignore
+tests/
+*.md

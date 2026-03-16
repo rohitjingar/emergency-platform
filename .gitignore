@@ -214,3 +214,10 @@ chroma_db/
 # Virtual environment
 backend/venv311/
 backend/venv_linux/
+
+# Docker
+.env.docker
+docker-compose.override.yml
+
+# WSL virtual environment
+emergency_venv/
