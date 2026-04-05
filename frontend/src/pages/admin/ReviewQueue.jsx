@@ -56,8 +56,8 @@ export default function ReviewQueue() {
     <div className="max-w-6xl mx-auto">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Review Queue</h1>
-          <p className="text-gray-600 mt-1">Incidents requiring human review (confidence &lt; {threshold * 100}%)</p>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Review Queue</h1>
+          <p className="text-gray-600 dark:text-gray-400 mt-1">Incidents requiring human review (confidence &lt; {threshold * 100}%)</p>
         </div>
       </div>
 
@@ -72,8 +72,8 @@ export default function ReviewQueue() {
           <div className="inline-flex items-center justify-center w-16 h-16 bg-green-100 rounded-full mb-4">
             <CheckCircle className="h-8 w-8 text-green-600" />
           </div>
-          <h3 className="text-lg font-medium text-gray-900 mb-2">All caught up!</h3>
-          <p className="text-gray-600">No incidents require review at this time.</p>
+          <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">All caught up!</h3>
+          <p className="text-gray-600 dark:text-gray-400">No incidents require review at this time.</p>
         </Card>
       ) : (
         <div className="space-y-4">
@@ -82,14 +82,14 @@ export default function ReviewQueue() {
               <div className="flex items-start justify-between">
                 <div className="flex-1">
                   <div className="flex items-center gap-3 mb-2">
-                    <span className="font-semibold text-gray-900">#{item.incident_id}</span>
-                    <span className="capitalize text-gray-700">{item.type}</span>
+                    <span className="font-semibold text-gray-900 dark:text-white">#{item.incident_id}</span>
+                    <span className="capitalize text-gray-700 dark:text-gray-300">{item.type}</span>
                     <SeverityBadge severity={item.severity} />
                   </div>
                   
-                  <p className="text-gray-600 mb-3">{item.description}</p>
+                  <p className="text-gray-600 dark:text-gray-400 mb-3">{item.description}</p>
                   
-                  <div className="flex items-center gap-6 text-sm text-gray-500 mb-3">
+                  <div className="flex items-center gap-6 text-sm text-gray-500 dark:text-gray-400 mb-3">
                     <span className="flex items-center gap-1">
                       <TrendingUp className="h-4 w-4" />
                       Confidence: {(item.confidence * 100).toFixed(0)}%
@@ -104,8 +104,8 @@ export default function ReviewQueue() {
                     </span>
                   </div>
 
-                  <div className="p-3 bg-gray-50 rounded-lg">
-                    <p className="text-sm text-gray-600">
+                  <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
                       <span className="font-medium">AI Reasoning:</span> {item.reasoning}
                     </p>
                   </div>
@@ -156,7 +156,7 @@ export default function ReviewQueue() {
       >
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">New Severity</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">New Severity</label>
             <div className="grid grid-cols-2 gap-2">
               {SEVERITY_OPTIONS.map((sev) => (
                 <button
@@ -166,7 +166,7 @@ export default function ReviewQueue() {
                     p-3 border rounded-lg transition-colors
                     ${overrideData.new_severity === sev
                       ? 'border-primary-500 bg-primary-50'
-                      : 'border-gray-200 hover:border-gray-300'
+                      : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:border-gray-600'
                     }
                   `}
                 >
@@ -176,13 +176,13 @@ export default function ReviewQueue() {
             </div>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Reason for Override</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Reason for Override</label>
             <textarea
               value={overrideData.reason}
               onChange={(e) => setOverrideData({ ...overrideData, reason: e.target.value })}
               placeholder="Explain why you're overriding the AI decision..."
               rows={3}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
             />
           </div>
         </div>
