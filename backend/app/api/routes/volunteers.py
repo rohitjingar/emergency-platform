@@ -16,6 +16,48 @@ from app.models.notification import Notification
 
 router = APIRouter(prefix="/volunteers", tags=["Volunteers"])
 
+# ── Get My Profile ───────────────────────────────────────────────
+
+@router.get("/me", response_model=VolunteerLocationResponse)
+def get_my_profile(
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(require_role(["volunteer"]))
+):
+    user_id = int(current_user["sub"])
+    repo = VolunteerRepository(db)
+    volunteer = repo.get_by_user_id(user_id)
+    if not volunteer:
+        raise HTTPException(status_code=404, detail="Profile not found")
+    
+    latitude = None
+    longitude = None
+    if volunteer.location is not None:
+        try:
+            from geoalchemy2.shape import to_shape
+            point = to_shape(volunteer.location)
+            latitude = point.y
+            longitude = point.x
+        except ImportError:
+            # Shapely not available, use raw ST_X/ST_Y via text
+            from sqlalchemy import text
+            result = db.execute(
+                text("SELECT ST_Y(location::geometry) as lat, ST_X(location::geometry) as lng FROM volunteers WHERE id = :id"),
+                {"id": volunteer.id}
+            ).fetchone()
+            if result:
+                latitude = float(result.lat)
+                longitude = float(result.lng)
+    
+    return {
+        "id": volunteer.id,
+        "user_id": volunteer.user_id,
+        "skills": volunteer.skills,
+        "availability_status": volunteer.availability_status,
+        "radius_km": volunteer.radius_km,
+        "latitude": latitude,
+        "longitude": longitude,
+    }
+
 # ── Register / Location / Status (unchanged) ────────────────────
 
 @router.post("/register", response_model=VolunteerResponse)
@@ -35,6 +77,23 @@ def register_volunteer(
         radius_km=data.radius_km
     )
     return volunteer
+
+@router.patch("/profile", response_model=VolunteerResponse)
+def update_volunteer_profile(
+    data: VolunteerRegister,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(require_role(["volunteer"]))
+):
+    user_id = int(current_user["sub"])
+    repo = VolunteerRepository(db)
+    volunteer = repo.get_by_user_id(user_id)
+    if not volunteer:
+        raise HTTPException(status_code=404, detail="Profile not found")
+    return repo.update_profile(
+        volunteer=volunteer,
+        skills=data.skills,
+        radius_km=data.radius_km
+    )
 
 @router.patch("/location", response_model=VolunteerLocationResponse)
 def update_location(

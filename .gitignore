@@ -221,3 +221,12 @@ docker-compose.override.yml
 
 # WSL virtual environment
 emergency_venv/
+
+AGENTS.md
+opencode.json
+
+
+frontend/node_modules/
+frontend/test-results/
+# Vite build output
+frontend/dist/

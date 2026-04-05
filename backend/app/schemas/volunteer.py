@@ -62,8 +62,8 @@ class VolunteerLocationResponse(BaseModel):
     skills: list[str]
     availability_status: str
     radius_km: float
-    latitude: float
-    longitude: float
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
 
     class Config:
-        from_attributes = False  # we'll build this manually
+        from_attributes = True

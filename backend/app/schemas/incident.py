@@ -17,6 +17,8 @@ class IncidentResponse(BaseModel):
     longitude: float
     priority: str
     status: str
+    severity: Optional[str] = None
+    confidence: Optional[float] = None
     user_id: int
     created_at: datetime
 

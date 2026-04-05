@@ -1,27 +1,43 @@
 from contextlib import asynccontextmanager
+import threading
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from app.db.database import Base, engine
 from app.models import user, incident, volunteer, notification
 from app.api.routes import auth, incidents, ai, volunteers, notifications, admin, system
-from app.services.rag_service import load_knowledge_base
 
 Base.metadata.create_all(bind=engine)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # startup
-    print("Loading emergency knowledge base...")
-    load_knowledge_base()
-    print("Knowledge base ready!")
+    # startup - load knowledge base in background thread
+    def load_in_background():
+        try:
+            from app.services.rag_service import load_knowledge_base
+            print("Loading emergency knowledge base in background...")
+            load_knowledge_base()
+            print("Knowledge base ready!")
+        except Exception as e:
+            print(f"Warning: Knowledge base loading failed: {e}")
+    
+    thread = threading.Thread(target=load_in_background, daemon=True)
+    thread.start()
     
     yield
-    # shutdown (add cleanup here later if needed)
 
 app = FastAPI(
     title="Emergency Coordination Platform",
     description="AI-powered emergency response coordination",
     version="0.1.0",
     lifespan=lifespan
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000", "http://localhost:3001", "http://localhost:5173"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 app.include_router(auth.router)

@@ -30,6 +30,11 @@ class IncidentRepository:
     def get_all(self, skip: int = 0, limit: int = 10) -> list[Incident]:
         return self.db.query(Incident).offset(skip).limit(limit).all()
 
+    def get_by_user(self, user_id: int, skip: int = 0, limit: int = 10) -> list[Incident]:
+        return self.db.query(Incident).filter(
+            Incident.user_id == user_id
+        ).order_by(Incident.created_at.desc()).offset(skip).limit(limit).all()
+
     def get_by_id(self, incident_id: int) -> Incident | None:
         return self.db.query(Incident).filter(Incident.id == incident_id).first()
 

@@ -84,7 +84,9 @@ def create_incident(db: Session, data: IncidentCreate, user_id: int) -> dict:
         "queued": queued
     }
 
-def get_incidents(db: Session, skip: int = 0, limit: int = 10) -> list[Incident]:
+def get_incidents(db: Session, skip: int = 0, limit: int = 10, user_id: int = None) -> list[Incident]:
+    if user_id:
+        return IncidentRepository(db).get_by_user(user_id, skip=skip, limit=limit)
     return IncidentRepository(db).get_all(skip=skip, limit=limit)
 
 def delete_incident(db: Session, incident_id: int) -> None:

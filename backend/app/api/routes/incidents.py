@@ -36,11 +36,12 @@ def create(
 @router.get("/", response_model=List[IncidentResponse])
 def list_incidents(
     skip: int = 0,
-    limit: int = 10,
+    limit: int = 100,
     db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user)
 ):
-    return get_incidents(db, skip=skip, limit=limit)
+    user_id = int(current_user["sub"])
+    return get_incidents(db, skip=skip, limit=limit, user_id=user_id)
 
 @router.get("/{incident_id}/status")
 def get_incident_status(

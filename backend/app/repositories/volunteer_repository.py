@@ -52,6 +52,14 @@ class VolunteerRepository:
 
         return volunteer
 
+    def update_profile(self, volunteer: Volunteer, skills: list[str], radius_km: float) -> Volunteer:
+        volunteer.skills = skills
+        volunteer.radius_km = radius_km
+        volunteer.updated_at = datetime.now(timezone.utc)
+        self.db.commit()
+        self.db.refresh(volunteer)
+        return volunteer
+
     def find_available_near(
         self,
         latitude: float,

@@ -24,23 +24,27 @@ def get_embedding_function():
     )
 
 def load_knowledge_base() -> None:
-    client = get_chroma_client()
-    ef = get_embedding_function()
-    collection = client.get_or_create_collection(
-        name=settings.CHROMA_COLLECTION,
-        embedding_function=ef
-    )
-    existing = collection.get()
-    if len(existing["ids"]) > 0:
-        print(f"Knowledge base already loaded: {len(existing['ids'])} docs")
-        return
+    try:
+        client = get_chroma_client()
+        ef = get_embedding_function()
+        collection = client.get_or_create_collection(
+            name=settings.CHROMA_COLLECTION,
+            embedding_function=ef
+        )
+        existing = collection.get()
+        if len(existing["ids"]) > 0:
+            print(f"Knowledge base already loaded: {len(existing['ids'])} docs")
+            return
 
-    collection.add(
-        documents=[doc["content"] for doc in EMERGENCY_DOCS],
-        ids=[doc["id"] for doc in EMERGENCY_DOCS],
-        metadatas=[doc["metadata"] for doc in EMERGENCY_DOCS]
-    )
-    print(f"Loaded {len(EMERGENCY_DOCS)} emergency documents into ChromaDB")
+        collection.add(
+            documents=[doc["content"] for doc in EMERGENCY_DOCS],
+            ids=[doc["id"] for doc in EMERGENCY_DOCS],
+            metadatas=[doc["metadata"] for doc in EMERGENCY_DOCS]
+        )
+        print(f"Loaded {len(EMERGENCY_DOCS)} emergency documents into ChromaDB")
+    except Exception as e:
+        print(f"Warning: Failed to load knowledge base: {e}")
+        print("The application will continue without RAG functionality.")
 
 def query_knowledge_base(question: str, n_results: int = 2) -> list[dict]:
     client = get_chroma_client()
