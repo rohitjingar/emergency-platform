@@ -225,6 +225,7 @@ emergency_venv/
 AGENTS.md
 opencode.json
 
+docs/
 
 frontend/node_modules/
 frontend/test-results/
